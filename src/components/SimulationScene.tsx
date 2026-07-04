@@ -18,10 +18,14 @@ const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating, impactProfil
   const shockwaveRef = useRef<THREE.Mesh>(null!);
   const burstRef = useRef<THREE.Mesh>(null!);
   const rippleRef = useRef<THREE.Mesh>(null!);
+  const lensingRef = useRef<THREE.Mesh>(null!);
+  const particleRef = useRef<THREE.Points>(null!);
   const bhRef = useRef<THREE.Group>(null!);
   const diskRefs = useRef<THREE.Mesh[]>([]);
   const horizonGlowRef = useRef<THREE.Mesh>(null!);
   const orbitRef = useRef<any>(null);
+  const cameraPivotRef = useRef<THREE.Group>(null!);
+  const collapseRef = useRef<THREE.Mesh>(null!);
 
   const visualBhSize = Math.max(bhRadius / 400000, 1.8);
   const distortionStrength = impactProfile.distortionStrength;
@@ -29,10 +33,40 @@ const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating, impactProfil
   const burstIntensity = impactProfile.burstIntensity;
   const particleCount = impactProfile.particleCount;
   const diskColors = useMemo(() => ['#ff8b3d', '#ff3d71', '#ffd166', '#7dd3fc'], []);
+  const particlePositions = useMemo(() => {
+    const positions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i += 1) {
+      const angle = (i / particleCount) * Math.PI * 2;
+      const radius = 0.9 + (i % 8) * 0.15;
+      positions[i * 3] = Math.cos(angle) * radius;
+      positions[i * 3 + 1] = Math.sin(angle * 1.7) * 0.35;
+      positions[i * 3 + 2] = Math.sin(angle) * radius * 0.4;
+    }
+    return positions;
+  }, [particleCount]);
+  const particleGeometry = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+    return geometry;
+  }, [particlePositions]);
 
   useFrame((state, delta) => {
+    const camera = state.camera;
     if (sunRef.current) {
       sunRef.current.rotation.y += delta * 0.2;
+    }
+
+    if (cameraPivotRef.current) {
+      const closeFactor = isSimulating
+        ? Math.max(0, Math.min(1, (14 - (bhRef.current?.position.x ?? 12)) / 14))
+        : 0;
+      const flyProgress = isSimulating ? Math.min(1, state.clock.getElapsedTime() / 4.2) : 0;
+      cameraPivotRef.current.position.x = -4 + flyProgress * 6;
+      cameraPivotRef.current.position.y = 3 + closeFactor * 2.2;
+      cameraPivotRef.current.position.z = 16 - flyProgress * 10;
+      cameraPivotRef.current.lookAt(-8, 1.5, 0);
+      camera.position.lerp(new THREE.Vector3(cameraPivotRef.current.position.x, cameraPivotRef.current.position.y, cameraPivotRef.current.position.z), 0.05);
+      camera.lookAt(-8, 1.5, 0);
     }
 
     if (bhRef.current) {
@@ -40,9 +74,10 @@ const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating, impactProfil
       if (isSimulating) {
         const progress = Math.min(1, t / (4 / approachSpeed));
         const eased = progress * progress * (3 - 2 * progress);
+        const orbitAngle = eased * Math.PI * 1.35;
         bhRef.current.position.x = 14 - eased * 20;
-        bhRef.current.position.y = Math.sin(t * 2.2) * 0.9;
-        bhRef.current.position.z = Math.sin(t * 1.4) * 0.8;
+        bhRef.current.position.y = Math.sin(orbitAngle) * (1.1 + distortionStrength * 0.2);
+        bhRef.current.position.z = Math.cos(orbitAngle * 0.8) * (0.9 + distortionStrength * 0.2);
       } else {
         bhRef.current.position.set(12, 0, 0);
       }
@@ -122,8 +157,51 @@ const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating, impactProfil
       material.opacity = 0.08 + closeFactor * (0.24 + distortionStrength * 0.16);
     });
 
+    if (particleRef.current) {
+      const geometry = particleRef.current.geometry;
+      const positions = geometry.attributes.position.array as Float32Array;
+      const closeFactor = isSimulating
+        ? Math.max(0, Math.min(1, (14 - (bhRef.current?.position.x ?? 12)) / 14))
+        : 0;
+
+      for (let i = 0; i < impactProfile.particleCount; i += 1) {
+        const baseIndex = i * 3;
+        const angle = (i / impactProfile.particleCount) * Math.PI * 2 + state.clock.getElapsedTime() * (0.7 + closeFactor * 0.8);
+        const radius = 0.9 + (i % 8) * 0.15 + closeFactor * 0.8;
+        positions[baseIndex] = Math.cos(angle) * radius;
+        positions[baseIndex + 1] = Math.sin(angle * 1.7 + closeFactor) * (0.35 + closeFactor * 0.25);
+        positions[baseIndex + 2] = Math.sin(angle) * radius * 0.45;
+      }
+
+      geometry.attributes.position.needsUpdate = true;
+    }
+
+    if (lensingRef.current) {
+      const closeFactor = isSimulating
+        ? Math.max(0, Math.min(1, (14 - (bhRef.current?.position.x ?? 12)) / 14))
+        : 0;
+      lensingRef.current.scale.setScalar(1 + closeFactor * 0.8);
+      const material = lensingRef.current.material as THREE.MeshBasicMaterial;
+      material.opacity = 0.08 + closeFactor * 0.2;
+    }
+
+    if (collapseRef.current) {
+      const closeFactor = isSimulating
+        ? Math.max(0, Math.min(1, (14 - (bhRef.current?.position.x ?? 12)) / 14))
+        : 0;
+      const slowDown = Math.sin(Math.min(1, (closeFactor - 0.82) / 0.18) * Math.PI * 0.5);
+      collapseRef.current.scale.setScalar(0.7 + closeFactor * 2.2 + slowDown * 0.35);
+      const material = collapseRef.current.material as THREE.MeshBasicMaterial;
+      material.opacity = closeFactor > 0.9 ? 0.7 : 0.05 + closeFactor * 0.12 + slowDown * 0.08;
+    }
+
     if (horizonGlowRef.current) {
-      horizonGlowRef.current.scale.setScalar(1 + Math.sin(state.clock.getElapsedTime() * 3) * 0.04);
+      const closeFactor = isSimulating
+        ? Math.max(0, Math.min(1, (14 - (bhRef.current?.position.x ?? 12)) / 14))
+        : 0;
+      horizonGlowRef.current.scale.setScalar(1 + Math.sin(state.clock.getElapsedTime() * 3) * 0.04 + closeFactor * 0.16);
+      const material = horizonGlowRef.current.material as THREE.MeshBasicMaterial;
+      material.opacity = 0.18 + closeFactor * 0.22;
     }
 
     if (orbitRef.current) {
@@ -205,6 +283,10 @@ const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating, impactProfil
         ))}
       </group>
 
+      <group ref={cameraPivotRef}>
+        <primitive object={new THREE.Object3D()} />
+      </group>
+
       <group ref={bhRef}>
         <mesh position={[12, 0, 0]}>
           <sphereGeometry args={[visualBhSize, 64, 64]} />
@@ -215,6 +297,26 @@ const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating, impactProfil
           <sphereGeometry args={[visualBhSize * 1.18, 64, 64]} />
           <meshBasicMaterial color="#4400ff" transparent opacity={0.18} />
         </mesh>
+
+        <mesh ref={lensingRef} position={[12, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[visualBhSize * 2.6, 0.03, 16, 220]} />
+          <meshBasicMaterial color="#7dd3fc" transparent opacity={0.08} />
+        </mesh>
+
+        <mesh ref={collapseRef} position={[12, 0, 0]}>
+          <sphereGeometry args={[0.15, 24, 24]} />
+          <meshBasicMaterial color="#fff8d6" transparent opacity={0.05} />
+        </mesh>
+
+        <mesh position={[12, 0, 0]}>
+          <sphereGeometry args={[visualBhSize * 1.55, 32, 32]} />
+          <meshBasicMaterial color="#ffe8a8" transparent opacity={0.14} />
+        </mesh>
+
+        <points ref={particleRef}>
+          <primitive object={particleGeometry} attach="geometry" />
+          <pointsMaterial size={0.08} color="#ffe39a" transparent opacity={0.85} depthWrite={false} />
+        </points>
 
         {[0, 1, 2, 3].map((index) => (
           <mesh
