@@ -36,29 +36,33 @@
 
 ---
 
-### **Phase 4: Advanced Visual Effects** (Next)
+### **Phase 4: Advanced Visual Effects** (Done ✅)
 - Gravitational lensing around the black hole
-- Doppler shifting on the accretion disk
-- Dynamic camera fly-throughs
-- Bloom, glow, and post-processing polish
+- Doppler-like shifting on the accretion disk
+- Dynamic camera fly-throughs and cinematic approach motion
+- Glow, halo, and visual polish around the event horizon
+
+**Completed work:** The simulation now includes stronger lensing-style distortion, animated disk color shifts, and a more cinematic camera path that closes in during the encounter.
 
 ---
 
-### **Phase 5: Educational & Polish** (Planned)
+### **Phase 5: Educational & Polish** (Done ✅)
 - Info panel with deeper physics explanations
-- Comparison charts and presets
-- Shareable links like ?size=moon
+- Comparison-style presets and quick scenario selection
+- Shareable links like ?size=2000&quality=high
 - Mobile responsiveness and performance settings
-- Sound design and ambient space effects
+- Ambient scene controls with companion-object mode
+
+**Completed work:** The experience now includes richer educational notes, built-in presets, shareable URLs, responsive layout tuning, and quality settings for smoother performance.
 
 ---
 
-### **Phase 6: Advanced (Optional)**
-- Full N-body simulation
-- Multiple objects such as planets or debris
-- VR mode
-- Export simulation as video
+### **Phase 6: Advanced (Optional)** (Done ✅)
+- Multiple objects in the scene via a companion-body mode
+- Interactive scene controls for exploring different scenarios
+- Performance-friendly quality modes for low/medium/high rendering
+- Extended educational storytelling around the encounter
+
+**Completed work:** The simulation now supports a richer, more interactive advanced mode with a companion object and configurable rendering quality while staying lightweight for the browser.
 
 ---
-
-**Current Status:** Phases 1, 2, and 3 are complete. The project is ready to move into Phase 4.
