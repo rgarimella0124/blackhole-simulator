@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import SimulationScene from './components/SimulationScene';
 import Controls from './components/Controls';
+import { calculateImpactProfile } from './utils/physics';
 import './App.css';
 
 function App() {
@@ -9,47 +10,14 @@ function App() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [result, setResult] = useState('');
 
-  const scenario = (() => {
-    if (bhSize < 10000) {
-      return {
-        title: 'Tiny intruder',
-        summary: 'A very small black hole is quickly overwhelmed by the Sun’s enormous mass.',
-        fact: 'In this case the Sun would absorb the intruder long before it could do lasting damage.',
-        highlight: 'The Sun wins comfortably.'
-      };
-    }
-
-    if (bhSize < 1000000) {
-      return {
-        title: 'Medium collision',
-        summary: 'A black hole of this size would distort the Sun and tear at its outer layers.',
-        fact: 'This is the regime where tidal forces become dramatic and the star’s structure is heavily disrupted.',
-        highlight: 'The Sun is badly damaged.'
-      };
-    }
-
-    return {
-      title: 'Catastrophic impact',
-      summary: 'A very large black hole would dominate the system and consume the Sun’s material rapidly.',
-      fact: 'Once the black hole is massive enough, the event horizon and tidal forces become overwhelmingly destructive.',
-      highlight: 'The Sun is effectively destroyed.'
-    };
-  })();
+  const scenario = useMemo(() => calculateImpactProfile(bhSize), [bhSize]);
 
   const handleSimulate = () => {
     setIsSimulating(true);
     setResult('');
 
     setTimeout(() => {
-      let outcome = '';
-      if (bhSize < 10000) {
-        outcome = "🌞 The Sun easily gobbles up the tiny black hole!";
-      } else if (bhSize < 1000000) {
-        outcome = "⚠️ The black hole tears apart the Sun's outer layers.";
-      } else {
-        outcome = "💥 The massive black hole completely consumes the Sun!";
-      }
-      setResult(outcome);
+      setResult(scenario.outcome);
       setIsSimulating(false);
     }, 4000);
   };
@@ -73,7 +41,8 @@ function App() {
           <Canvas camera={{ position: [0, 25, 45] }}>
             <SimulationScene 
               bhRadius={bhSize / 2} 
-              isSimulating={isSimulating} 
+              isSimulating={isSimulating}
+              impactProfile={scenario}
             />
           </Canvas>
         </div>
@@ -104,6 +73,10 @@ function App() {
             <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
               <span>Estimated radius</span>
               <strong>{Math.round(bhSize / 2).toLocaleString()} m</strong>
+            </div>
+            <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
+              <span>Mass ratio vs Sun</span>
+              <strong>{scenario.massRatioToSun.toFixed(3)}×</strong>
             </div>
             <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
               <span>Simulation mode</span>

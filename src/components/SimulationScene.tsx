@@ -3,12 +3,15 @@ import { useFrame } from '@react-three/fiber';
 import { Stars, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
+import { ImpactProfile } from '../utils/physics';
+
 interface Props {
   bhRadius: number;
   isSimulating: boolean;
+  impactProfile: ImpactProfile;
 }
 
-const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating }) => {
+const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating, impactProfile }) => {
   const sunRef = useRef<THREE.Group>(null!);
   const distortionRef = useRef<THREE.Group>(null!);
   const streamerRefs = useRef<THREE.Mesh[]>([]);
@@ -21,6 +24,10 @@ const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating }) => {
   const orbitRef = useRef<any>(null);
 
   const visualBhSize = Math.max(bhRadius / 400000, 1.8);
+  const distortionStrength = impactProfile.distortionStrength;
+  const approachSpeed = impactProfile.approachSpeed;
+  const burstIntensity = impactProfile.burstIntensity;
+  const particleCount = impactProfile.particleCount;
   const diskColors = useMemo(() => ['#ff8b3d', '#ff3d71', '#ffd166', '#7dd3fc'], []);
 
   useFrame((state, delta) => {
@@ -31,7 +38,7 @@ const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating }) => {
     if (bhRef.current) {
       const t = state.clock.getElapsedTime();
       if (isSimulating) {
-        const progress = Math.min(1, t / 4);
+        const progress = Math.min(1, t / (4 / approachSpeed));
         const eased = progress * progress * (3 - 2 * progress);
         bhRef.current.position.x = 14 - eased * 20;
         bhRef.current.position.y = Math.sin(t * 2.2) * 0.9;
@@ -51,9 +58,9 @@ const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating }) => {
         ? Math.max(0, Math.min(1, (14 - (bhRef.current?.position.x ?? 12)) / 14))
         : 0;
       sunRef.current.scale.set(
-        1 + closeFactor * 0.22,
-        1 - closeFactor * 0.16,
-        1 + closeFactor * 0.22
+        1 + closeFactor * (0.2 + distortionStrength * 0.08),
+        1 - closeFactor * (0.12 + distortionStrength * 0.08),
+        1 + closeFactor * (0.2 + distortionStrength * 0.08)
       );
       sunRef.current.position.y = closeFactor * 0.4;
       sunRef.current.position.x = -closeFactor * 0.2;
@@ -64,55 +71,55 @@ const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating }) => {
         ? Math.max(0, Math.min(1, (14 - (bhRef.current?.position.x ?? 12)) / 14))
         : 0;
       distortionRef.current.scale.set(
-        1 + closeFactor * 0.9,
-        1 - closeFactor * 0.6,
-        1 + closeFactor * 0.24
+        1 + closeFactor * (0.8 + distortionStrength * 0.4),
+        1 - closeFactor * (0.5 + distortionStrength * 0.25),
+        1 + closeFactor * (0.2 + distortionStrength * 0.08)
       );
-      distortionRef.current.position.x = closeFactor * 2.2;
-      distortionRef.current.position.y = Math.sin(state.clock.getElapsedTime() * 4) * closeFactor * 0.45;
-      distortionRef.current.rotation.z = closeFactor * 1.1;
-      distortionRef.current.rotation.x = closeFactor * 0.45;
+      distortionRef.current.position.x = closeFactor * (2.2 + distortionStrength * 0.6);
+      distortionRef.current.position.y = Math.sin(state.clock.getElapsedTime() * (3.5 + distortionStrength)) * closeFactor * (0.4 + distortionStrength * 0.2);
+      distortionRef.current.rotation.z = closeFactor * (0.9 + distortionStrength * 0.3);
+      distortionRef.current.rotation.x = closeFactor * (0.35 + distortionStrength * 0.15);
     }
 
     if (shockwaveRef.current) {
       const closeFactor = isSimulating
         ? Math.max(0, Math.min(1, (14 - (bhRef.current?.position.x ?? 12)) / 14))
         : 0;
-      shockwaveRef.current.scale.setScalar(1.3 + closeFactor * 1.8);
+      shockwaveRef.current.scale.setScalar(1.3 + closeFactor * (1.6 + burstIntensity * 0.8));
       const material = shockwaveRef.current.material as THREE.MeshBasicMaterial;
-      material.opacity = 0.06 + closeFactor * 0.28;
+      material.opacity = 0.06 + closeFactor * (0.24 + burstIntensity * 0.08);
     }
 
     if (burstRef.current) {
       const closeFactor = isSimulating
         ? Math.max(0, Math.min(1, (14 - (bhRef.current?.position.x ?? 12)) / 14))
         : 0;
-      burstRef.current.scale.setScalar(0.8 + closeFactor * 2.4);
+      burstRef.current.scale.setScalar(0.8 + closeFactor * (2.1 + burstIntensity * 1.3));
       const material = burstRef.current.material as THREE.MeshBasicMaterial;
-      material.opacity = closeFactor > 0.9 ? 0.4 : 0.08 + closeFactor * 0.2;
+      material.opacity = closeFactor > 0.9 ? 0.45 : 0.08 + closeFactor * (0.16 + burstIntensity * 0.12);
     }
 
     if (rippleRef.current) {
       const closeFactor = isSimulating
         ? Math.max(0, Math.min(1, (14 - (bhRef.current?.position.x ?? 12)) / 14))
         : 0;
-      rippleRef.current.scale.setScalar(1 + closeFactor * 1.1);
-      rippleRef.current.rotation.z = state.clock.getElapsedTime() * 0.8;
+      rippleRef.current.scale.setScalar(1 + closeFactor * (1.1 + distortionStrength * 0.6));
+      rippleRef.current.rotation.z = state.clock.getElapsedTime() * (0.8 + distortionStrength * 0.25);
       const material = rippleRef.current.material as THREE.MeshBasicMaterial;
-      material.opacity = 0.04 + closeFactor * 0.16;
+      material.opacity = 0.04 + closeFactor * (0.14 + distortionStrength * 0.08);
     }
 
     streamerRefs.current.forEach((mesh, index) => {
       const closeFactor = isSimulating
         ? Math.max(0, Math.min(1, (14 - (bhRef.current?.position.x ?? 12)) / 14))
         : 0;
-      const stretch = 1 + closeFactor * 3.4;
+      const stretch = 1 + closeFactor * (2.8 + distortionStrength * 1.7);
       mesh.scale.set(1, stretch, 1);
       mesh.position.y = (index - 1) * 0.9;
       mesh.position.x = (index - 1) * 0.25;
       mesh.rotation.z = closeFactor * 0.65 + index * 0.08;
       const material = mesh.material as THREE.MeshBasicMaterial;
-      material.opacity = 0.08 + closeFactor * 0.34;
+      material.opacity = 0.08 + closeFactor * (0.24 + distortionStrength * 0.16);
     });
 
     if (horizonGlowRef.current) {
@@ -120,7 +127,7 @@ const SimulationScene: React.FC<Props> = ({ bhRadius, isSimulating }) => {
     }
 
     if (orbitRef.current) {
-      orbitRef.current.autoRotateSpeed = isSimulating ? 0.6 : 0.25;
+      orbitRef.current.autoRotateSpeed = isSimulating ? 0.45 + distortionStrength * 0.16 : 0.25;
     }
   });
 
