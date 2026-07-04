@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import SimulationScene from './components/SimulationScene';
 import Controls from './components/Controls';
@@ -47,7 +47,6 @@ function App() {
             <SimulationScene 
               bhRadius={bhSize / 2} 
               isSimulating={isSimulating} 
-              onComplete={() => {}} 
             />
           </Canvas>
         </div>
